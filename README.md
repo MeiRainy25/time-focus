@@ -1,75 +1,101 @@
-# React + TypeScript + Vite
+# Time Focus
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一个基于 React、TypeScript、Vite 的专注计时应用。
 
-Currently, two official plugins are available:
+## 功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 首页专注计时
+  - 选择专注类型：代码、学习
+  - 输入专注事件名称
+  - 自定义专注时长
+  - 支持开始、暂停、重置、结束
+  - 今日专注时长统计
+- 专注记录页
+  - 展示每次专注记录
+  - 包含专注类型图标、事件名称、记录时间、专注时长
+- 图表页
+  - 使用 ECharts 展示最近专注时长柱状图
+  - 使用 ECharts 展示每日专注趋势折线图
+- 数据存储
+  - 使用 IndexedDB 持久化专注记录
 
-## React Compiler
+## 技术栈
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- react-router
+- ECharts
+- IndexedDB
 
-Note: This will impact Vite dev & build performances.
+## 页面路由
 
-## Expanding the ESLint configuration
+- `/`：首页
+- `/focus-list`：专注记录
+- `/charts`：专注图表
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+除首页外，记录页和图表页均使用 `React.lazy` 懒加载。
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 本地开发
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+安装依赖：
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+启动开发服务：
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm dev
 ```
+
+构建：
+
+```bash
+pnpm build
+```
+
+代码检查：
+
+```bash
+pnpm lint
+```
+
+## 项目结构
+
+```txt
+src
+├─ component
+│  ├─ AppFooter.tsx
+│  └─ ui
+├─ lib
+│  ├─ indexed-db.ts
+│  └─ utils.ts
+├─ pages
+│  ├─ charts
+│  ├─ focus-list
+│  └─ home
+├─ types
+│  └─ focus.ts
+├─ App.tsx
+└─ main.tsx
+```
+
+## 数据说明
+
+专注记录结构定义在 `src/types/focus.ts`：
+
+```ts
+export type FocusRecord = {
+  createdAt: number;
+  durationSeconds: number;
+  id: string;
+  name: string;
+  type: "code" | "study";
+};
+```
+
+IndexedDB 封装位于 `src/lib/indexed-db.ts`，默认数据库为 `time-focus`，默认 store 为 `focus-records`。
