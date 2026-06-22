@@ -17,21 +17,22 @@ const FocusListPage = lazy(() =>
 function App() {
   return (
     <BrowserRouter>
-      <main className="flex min-h-screen flex-col bg-background text-foreground">
-        <Suspense
-          fallback={
-            <div className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-4 py-6 text-sm text-muted-foreground sm:px-6 lg:px-8">
-              页面加载中...
-            </div>
-          }
-        >
-          <Routes>
-            <Route element={<HomePage />} path="/" />
-            <Route element={<FocusListPage />} path="/focus-list" />
-            <Route element={<ChartsPage />} path="/charts" />
-            <Route element={<Navigate replace to="/" />} path="*" />
-          </Routes>
-        </Suspense>
+      <main className="flex min-h-screen max-h-screen overflow-hidden flex-col bg-background text-foreground">
+        <div className="flex-1 min-h-0 overflow-auto">
+          <Suspense
+            fallback={
+              <div className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-4 py-6 text-sm text-muted-foreground sm:px-6 lg:px-8">
+                页面加载中...
+              </div>
+            }>
+            <Routes>
+              <Route element={<HomePage />} path="/" />
+              <Route element={<FocusListPage />} path="/focus-list" />
+              <Route element={<ChartsPage />} path="/charts" />
+              <Route element={<Navigate replace to="/" />} path="*" />
+            </Routes>
+          </Suspense>
+        </div>
         <AppFooter />
       </main>
     </BrowserRouter>
