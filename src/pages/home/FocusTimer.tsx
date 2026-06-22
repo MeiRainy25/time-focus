@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { Clock3, Hourglass, Timer } from "lucide-react";
+import { Input } from "@/component/ui/input";
+import { useTimerStore, type TimerMode } from "@/store/timer-store";
 import type { FocusType } from "@/types/focus";
 
 const TIMER_SIZE = 280;
@@ -12,13 +15,10 @@ const focusTypeLabel: Record<FocusType, string> = {
 };
 
 type FocusTimerProps = {
-  durationSeconds: number;
   focusName: string;
   focusType: FocusType;
   onFinish?: (focusedSeconds: number) => void;
 };
-
-type TimerStatus = "idle" | "running" | "paused";
 
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
@@ -31,79 +31,68 @@ function formatTime(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-function getFocusedSeconds(totalSeconds: number, remainingMs: number) {
-  const focusedMs = Math.max(0, totalSeconds * 1000 - remainingMs);
-
-  return Math.min(totalSeconds, Math.floor(focusedMs / 1000));
-}
-
 export function FocusTimer({
-  durationSeconds,
   focusName,
   focusType,
   onFinish,
 }: FocusTimerProps) {
-  const configuredDurationSeconds = Math.max(1, Math.round(durationSeconds));
-  const configuredDurationMs = configuredDurationSeconds * 1000;
-  const [status, setStatus] = useState<TimerStatus>("idle");
-  const [sessionDurationSeconds, setSessionDurationSeconds] = useState(
-    configuredDurationSeconds,
+  const durationMinutes = useTimerStore((state) => state.durationMinutes);
+  const elapsedMs = useTimerStore((state) => state.elapsedMs);
+  const elapsedSeconds = useTimerStore((state) => state.elapsedSeconds);
+  const mode = useTimerStore((state) => state.mode);
+  const pause = useTimerStore((state) => state.pause);
+  const reset = useTimerStore((state) => state.reset);
+  const setDurationMinutes = useTimerStore(
+    (state) => state.setDurationMinutes,
   );
-  const [remainingSeconds, setRemainingSeconds] = useState(
-    configuredDurationSeconds,
-  );
+  const setElapsed = useTimerStore((state) => state.setElapsed);
+  const setMode = useTimerStore((state) => state.setMode);
+  const start = useTimerStore((state) => state.start);
+  const startedAt = useTimerStore((state) => state.startedAt);
+  const status = useTimerStore((state) => state.status);
   const animationFrameRef = useRef<number | null>(null);
-  const endTimeRef = useRef<number | null>(null);
-  const remainingMsRef = useRef(configuredDurationMs);
-  const lastPaintedSecondRef = useRef(configuredDurationSeconds);
+  const lastPaintedSecondRef = useRef(elapsedSeconds);
 
+  const configuredDurationSeconds = durationMinutes * 60;
+  const configuredDurationMs = configuredDurationSeconds * 1000;
   const isRunning = status === "running";
-  const displayedTotalSeconds =
-    status === "idle" ? configuredDurationSeconds : sessionDurationSeconds;
-  const displayedRemainingSeconds =
-    status === "idle" ? configuredDurationSeconds : remainingSeconds;
+  const displayedSeconds =
+    mode === "countdown"
+      ? Math.max(0, configuredDurationSeconds - elapsedSeconds)
+      : elapsedSeconds;
 
   const progress = useMemo(() => {
-    return 1 - displayedRemainingSeconds / displayedTotalSeconds;
-  }, [displayedRemainingSeconds, displayedTotalSeconds]);
+    if (mode === "countup") {
+      return (elapsedSeconds % 60) / 60;
+    }
+
+    return Math.min(1, elapsedSeconds / configuredDurationSeconds);
+  }, [configuredDurationSeconds, elapsedSeconds, mode]);
 
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   const currentFocusName = focusName.trim() || "未命名专注";
 
-  const resetToConfiguredDuration = useCallback(() => {
-    endTimeRef.current = null;
-    remainingMsRef.current = configuredDurationMs;
-    lastPaintedSecondRef.current = configuredDurationSeconds;
-    setSessionDurationSeconds(configuredDurationSeconds);
-    setRemainingSeconds(configuredDurationSeconds);
-    setStatus("idle");
-  }, [configuredDurationMs, configuredDurationSeconds]);
-
   useEffect(() => {
-    if (!isRunning) {
+    if (!isRunning || startedAt === null) {
       return;
     }
 
-    endTimeRef.current = Date.now() + remainingMsRef.current;
-
     const tick = () => {
-      if (endTimeRef.current === null) {
-        return;
+      const nextElapsedMs = Date.now() - startedAt;
+      const cappedElapsedMs =
+        mode === "countdown"
+          ? Math.min(nextElapsedMs, configuredDurationMs)
+          : nextElapsedMs;
+      const nextElapsedSeconds = Math.floor(cappedElapsedMs / 1000);
+
+      if (nextElapsedSeconds !== lastPaintedSecondRef.current) {
+        lastPaintedSecondRef.current = nextElapsedSeconds;
+        setElapsed(cappedElapsedMs);
       }
 
-      const nextRemainingMs = Math.max(0, endTimeRef.current - Date.now());
-      const nextRemainingSeconds = Math.ceil(nextRemainingMs / 1000);
-
-      remainingMsRef.current = nextRemainingMs;
-
-      if (nextRemainingSeconds !== lastPaintedSecondRef.current) {
-        lastPaintedSecondRef.current = nextRemainingSeconds;
-        setRemainingSeconds(nextRemainingSeconds);
-      }
-
-      if (nextRemainingSeconds <= 0) {
-        onFinish?.(sessionDurationSeconds);
-        resetToConfiguredDuration();
+      if (mode === "countdown" && cappedElapsedMs >= configuredDurationMs) {
+        onFinish?.(configuredDurationSeconds);
+        reset();
         animationFrameRef.current = null;
         return;
       }
@@ -119,58 +108,92 @@ export function FocusTimer({
         animationFrameRef.current = null;
       }
     };
-  }, [isRunning, onFinish, resetToConfiguredDuration, sessionDurationSeconds]);
+  }, [
+    configuredDurationMs,
+    configuredDurationSeconds,
+    isRunning,
+    mode,
+    onFinish,
+    reset,
+    setElapsed,
+    startedAt,
+  ]);
 
-  const handleStart = () => {
-    if (status === "idle") {
-      remainingMsRef.current = configuredDurationMs;
-      lastPaintedSecondRef.current = configuredDurationSeconds;
-      setSessionDurationSeconds(configuredDurationSeconds);
-      setRemainingSeconds(configuredDurationSeconds);
-    }
-
-    setStatus("running");
-  };
-
-  const handlePause = () => {
-    if (endTimeRef.current !== null) {
-      const nextRemainingMs = Math.max(0, endTimeRef.current - Date.now());
-      const nextRemainingSeconds = Math.ceil(nextRemainingMs / 1000);
-
-      remainingMsRef.current = nextRemainingMs;
-      lastPaintedSecondRef.current = nextRemainingSeconds;
-      setRemainingSeconds(nextRemainingSeconds);
-    }
-
-    endTimeRef.current = null;
-    setStatus("paused");
-  };
-
-  const handleReset = () => {
-    resetToConfiguredDuration();
+  const handleModeChange = (nextMode: TimerMode) => {
+    setMode(nextMode);
+    lastPaintedSecondRef.current = 0;
   };
 
   const handleFinish = () => {
-    const latestRemainingMs =
-      endTimeRef.current === null
-        ? remainingMsRef.current
-        : Math.max(0, endTimeRef.current - Date.now());
-    const focusedSeconds = getFocusedSeconds(
-      sessionDurationSeconds,
-      latestRemainingMs,
-    );
+    const latestElapsedMs =
+      status === "running" && startedAt !== null
+        ? Date.now() - startedAt
+        : elapsedMs;
+    const focusedSeconds = Math.floor(latestElapsedMs / 1000);
 
     onFinish?.(focusedSeconds);
-    resetToConfiguredDuration();
+    reset();
+    lastPaintedSecondRef.current = 0;
   };
 
   return (
     <section className="flex flex-1 flex-col items-center justify-center gap-8 rounded-lg border border-border bg-card px-4 py-8 text-card-foreground shadow-sm">
-      <div className="text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          {focusTypeLabel[focusType]} · {currentFocusName}
-        </p>
-        <h2 className="mt-1 text-xl font-semibold">保持当前节奏</h2>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex rounded-md border border-border bg-background p-1">
+          <button
+            className={`flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium transition ${
+              mode === "countup"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent"
+            }`}
+            disabled={isRunning}
+            onClick={() => handleModeChange("countup")}
+            type="button"
+          >
+            <Timer className="size-4" aria-hidden="true" />
+            正向计时
+          </button>
+          <button
+            className={`flex items-center gap-2 rounded px-3 py-1.5 text-sm font-medium transition ${
+              mode === "countdown"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent"
+            }`}
+            disabled={isRunning}
+            onClick={() => handleModeChange("countdown")}
+            type="button"
+          >
+            <Hourglass className="size-4" aria-hidden="true" />
+            倒计时
+          </button>
+        </div>
+
+        {mode === "countdown" ? (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock3 className="size-4" aria-hidden="true" />
+            <span>专注时长</span>
+            <Input
+              className="w-24 text-base"
+              disabled={isRunning}
+              max={180}
+              min={1}
+              onChange={(event) => {
+                setDurationMinutes(event.currentTarget.valueAsNumber);
+                lastPaintedSecondRef.current = 0;
+              }}
+              type="number"
+              value={durationMinutes}
+            />
+            <span>分钟</span>
+          </label>
+        ) : null}
+
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {focusTypeLabel[focusType]} · {currentFocusName}
+          </p>
+          <h2 className="mt-1 text-xl font-semibold">保持当前节奏</h2>
+        </div>
       </div>
 
       <div className="relative grid place-items-center">
@@ -203,7 +226,7 @@ export function FocusTimer({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <time className="text-6xl font-semibold tabular-nums tracking-tight">
-            {formatTime(displayedRemainingSeconds)}
+            {formatTime(displayedSeconds)}
           </time>
           <span className="mt-2 text-sm text-muted-foreground">
             {status === "running"
@@ -219,7 +242,7 @@ export function FocusTimer({
         <button
           className="h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={isRunning}
-          onClick={handleStart}
+          onClick={start}
           type="button"
         >
           开始
@@ -227,14 +250,17 @@ export function FocusTimer({
         <button
           className="h-11 rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!isRunning}
-          onClick={handlePause}
+          onClick={pause}
           type="button"
         >
           暂停
         </button>
         <button
           className="h-11 rounded-md border border-border bg-background px-4 text-sm font-medium transition hover:bg-accent"
-          onClick={handleReset}
+          onClick={() => {
+            reset();
+            lastPaintedSecondRef.current = 0;
+          }}
           type="button"
         >
           重置

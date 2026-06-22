@@ -1,15 +1,17 @@
 import { useCallback, useState } from "react";
 import { addIndexedDbItem } from "@/lib/indexed-db";
-import type { FocusRecord, FocusType } from "@/types/focus";
+import { useFocusStore } from "@/store/focus-store";
+import type { FocusRecord } from "@/types/focus";
 import { AppHeader } from "./AppHeader";
 import { FocusForm } from "./FocusForm";
 import { FocusTimer } from "./FocusTimer";
 import { TodayFocusSummary } from "./TodayFocusSummary";
 
 export function HomePage() {
-  const [focusType, setFocusType] = useState<FocusType>("code");
-  const [focusName, setFocusName] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState(25);
+  const focusName = useFocusStore((state) => state.focusName);
+  const focusType = useFocusStore((state) => state.focusType);
+  const setFocusName = useFocusStore((state) => state.setFocusName);
+  const setFocusType = useFocusStore((state) => state.setFocusType);
   const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
 
   const handleFinish = useCallback(
@@ -38,15 +40,12 @@ export function HomePage() {
       <AppHeader />
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8">
         <FocusForm
-          durationMinutes={durationMinutes}
           focusName={focusName}
           focusType={focusType}
-          onDurationMinutesChange={setDurationMinutes}
           onFocusNameChange={setFocusName}
           onFocusTypeChange={setFocusType}
         />
         <FocusTimer
-          durationSeconds={durationMinutes * 60}
           focusName={focusName}
           focusType={focusType}
           onFinish={handleFinish}

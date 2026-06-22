@@ -7,13 +7,7 @@ import {
   SelectValue,
 } from "@/component/ui/select";
 import type { FocusType } from "@/types/focus";
-import {
-  BookOpen,
-  Clock3,
-  Code2,
-  ListChecks,
-  type LucideIcon,
-} from "lucide-react";
+import { BookOpen, Code2, ListChecks, type LucideIcon } from "lucide-react";
 
 type FocusOption = {
   icon: LucideIcon;
@@ -27,27 +21,15 @@ const focusOptions: FocusOption[] = [
 ];
 
 type FocusFormProps = {
-  durationMinutes: number;
   focusName: string;
   focusType: FocusType;
-  onDurationMinutesChange: (value: number) => void;
   onFocusNameChange: (value: string) => void;
   onFocusTypeChange: (value: FocusType) => void;
 };
 
-function clampDurationMinutes(value: number) {
-  if (!Number.isFinite(value)) {
-    return 1;
-  }
-
-  return Math.min(180, Math.max(1, Math.round(value)));
-}
-
 export function FocusForm({
-  durationMinutes,
   focusName,
   focusType,
-  onDurationMinutesChange,
   onFocusNameChange,
   onFocusTypeChange,
 }: FocusFormProps) {
@@ -85,25 +67,7 @@ export function FocusForm({
             </SelectContent>
           </Select>
         </label>
-        <label className="flex w-full flex-col gap-2 md:w-36">
-          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Clock3 className="size-4" aria-hidden="true" />
-            专注时长
-          </span>
-          <Input
-            className="text-base"
-            max={180}
-            min={1}
-            onChange={(event) =>
-              onDurationMinutesChange(
-                clampDurationMinutes(event.currentTarget.valueAsNumber),
-              )
-            }
-            type="number"
-            value={durationMinutes}
-          />
-        </label>
-        <label className="flex min-w-0 flex-[1.4] flex-col gap-2">
+        <label className="flex min-w-0 flex-1 flex-col gap-2">
           <span className="text-sm font-medium text-muted-foreground">
             专注事件名称
           </span>
