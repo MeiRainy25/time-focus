@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import type { EChartsOption } from "echarts";
 import { getAllIndexedDbItems } from "@/lib/indexed-db";
 import type { FocusRecord } from "@/types/focus";
-import { EChartPanel } from "./EChartPanel";
-
-function toMinutes(seconds: number) {
-  return Number((seconds / 60).toFixed(1));
-}
-
-function createRecordLabel(record: FocusRecord, index: number) {
-  const name = record.name.trim() || "未命名专注";
-
-  return name.length > 8 ? `${name.slice(0, 8)}...${index + 1}` : name;
-}
+import { DailyFocusLineChart } from "./DailyFocusLineChart";
+import { FocusDurationBarChart } from "./FocusDurationBarChart";
+import { FocusHeatmapChart } from "./FocusHeatmapChart";
 
 function sortRecords(records: FocusRecord[]) {
   return records.toSorted((first, second) => second.createdAt - first.createdAt);
@@ -40,75 +31,14 @@ export function ChartsPage() {
     };
   }, []);
 
-  const barOption = useMemo<EChartsOption>(() => {
-    const latestRecords = records.toReversed().slice(-10);
+  const dailyDurationMap = useMemo(() => {
+    return records.reduce<Record<string, number>>((result, record) => {
+      const date = dayjs(record.createdAt).format("YYYY-MM-DD");
 
-    return {
-      color: ["#18181b"],
-      grid: { bottom: 40, left: 48, right: 16, top: 24 },
-      tooltip: {
-        trigger: "axis",
-        valueFormatter: (value) => `${value} 分钟`,
-      },
-      xAxis: {
-        axisLabel: { interval: 0, rotate: 25 },
-        data: latestRecords.map(createRecordLabel),
-        type: "category",
-      },
-      yAxis: {
-        name: "分钟",
-        type: "value",
-      },
-      series: [
-        {
-          barMaxWidth: 36,
-          data: latestRecords.map((record) => toMinutes(record.durationSeconds)),
-          name: "专注时长",
-          type: "bar",
-        },
-      ],
-    };
-  }, [records]);
+      result[date] = (result[date] ?? 0) + record.durationSeconds;
 
-  const lineOption = useMemo<EChartsOption>(() => {
-    const dailyDurationMap = records.reduce<Record<string, number>>(
-      (result, record) => {
-        const date = dayjs(record.createdAt).format("MM-DD");
-
-        result[date] = (result[date] ?? 0) + record.durationSeconds;
-
-        return result;
-      },
-      {},
-    );
-    const dates = Object.keys(dailyDurationMap).toSorted();
-
-    return {
-      color: ["#18181b"],
-      grid: { bottom: 40, left: 48, right: 16, top: 24 },
-      tooltip: {
-        trigger: "axis",
-        valueFormatter: (value) => `${value} 分钟`,
-      },
-      xAxis: {
-        boundaryGap: false,
-        data: dates,
-        type: "category",
-      },
-      yAxis: {
-        name: "分钟",
-        type: "value",
-      },
-      series: [
-        {
-          areaStyle: { opacity: 0.08 },
-          data: dates.map((date) => toMinutes(dailyDurationMap[date] ?? 0)),
-          name: "每日专注",
-          smooth: true,
-          type: "line",
-        },
-      ],
-    };
+      return result;
+    }, {});
   }, [records]);
 
   return (
@@ -124,14 +54,9 @@ export function ChartsPage() {
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <section className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <h2 className="text-base font-medium">最近专注时长</h2>
-            <EChartPanel option={barOption} />
-          </section>
-          <section className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
-            <h2 className="text-base font-medium">每日专注趋势</h2>
-            <EChartPanel option={lineOption} />
-          </section>
+          <FocusDurationBarChart records={records} />
+          <DailyFocusLineChart dailyDurationMap={dailyDurationMap} />
+          <FocusHeatmapChart dailyDurationMap={dailyDurationMap} />
         </div>
       )}
     </div>

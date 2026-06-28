@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts";
 import type { EChartsOption } from "echarts";
+import { cn } from "@/lib/utils";
 
 type EChartPanelProps = {
+  className?: string;
   option: EChartsOption;
 };
 
-export function EChartPanel({ option }: EChartPanelProps) {
+export function EChartPanel({ className, option }: EChartPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -26,5 +28,5 @@ export function EChartPanel({ option }: EChartPanelProps) {
     };
   }, [option]);
 
-  return <div className="h-80 w-full" ref={containerRef} />;
+  return <div className={cn("h-80 w-full", className)} ref={containerRef} />;
 }
