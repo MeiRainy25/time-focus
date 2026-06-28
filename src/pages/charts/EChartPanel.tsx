@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import * as echarts from "echarts";
-import type { EChartsOption } from "echarts";
+import type { ECharts, EChartsOption } from "echarts";
 import { cn } from "@/lib/utils";
 
 type EChartPanelProps = {
@@ -16,15 +15,28 @@ export function EChartPanel({ className, option }: EChartPanelProps) {
       return;
     }
 
-    const chart = echarts.init(containerRef.current);
-    const resizeChart = () => chart.resize();
+    let chart: ECharts | null = null;
+    let isDisposed = false;
+    const resizeChart = () => chart?.resize();
 
-    chart.setOption(option);
-    window.addEventListener("resize", resizeChart);
+    async function initChart() {
+      const echarts = await import("echarts");
+
+      if (containerRef.current === null || isDisposed) {
+        return;
+      }
+
+      chart = echarts.init(containerRef.current);
+      chart.setOption(option);
+      window.addEventListener("resize", resizeChart);
+    }
+
+    void initChart();
 
     return () => {
+      isDisposed = true;
       window.removeEventListener("resize", resizeChart);
-      chart.dispose();
+      chart?.dispose();
     };
   }, [option]);
 

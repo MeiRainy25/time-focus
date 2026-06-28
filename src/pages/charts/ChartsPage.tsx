@@ -1,10 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { getAllIndexedDbItems } from "@/lib/indexed-db";
 import type { FocusRecord } from "@/types/focus";
-import { DailyFocusLineChart } from "./DailyFocusLineChart";
-import { FocusDurationBarChart } from "./FocusDurationBarChart";
-import { FocusHeatmapChart } from "./FocusHeatmapChart";
+
+const DailyFocusLineChart = lazy(() =>
+  import("./DailyFocusLineChart").then((module) => ({
+    default: module.DailyFocusLineChart,
+  })),
+);
+const FocusDurationBarChart = lazy(() =>
+  import("./FocusDurationBarChart").then((module) => ({
+    default: module.FocusDurationBarChart,
+  })),
+);
+const FocusHeatmapChart = lazy(() =>
+  import("./FocusHeatmapChart").then((module) => ({
+    default: module.FocusHeatmapChart,
+  })),
+);
 
 function sortRecords(records: FocusRecord[]) {
   return records.toSorted((first, second) => second.createdAt - first.createdAt);
@@ -53,11 +66,19 @@ export function ChartsPage() {
           暂无专注数据，完成一次专注后会生成图表。
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <FocusDurationBarChart records={records} />
-          <DailyFocusLineChart dailyDurationMap={dailyDurationMap} />
-          <FocusHeatmapChart dailyDurationMap={dailyDurationMap} />
-        </div>
+        <Suspense
+          fallback={
+            <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-muted-foreground">
+              图表加载中...
+            </div>
+          }
+        >
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FocusDurationBarChart records={records} />
+            <DailyFocusLineChart dailyDurationMap={dailyDurationMap} />
+            <FocusHeatmapChart dailyDurationMap={dailyDurationMap} />
+          </div>
+        </Suspense>
       )}
     </div>
   );
